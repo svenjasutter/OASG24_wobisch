@@ -22,6 +22,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.project.oasg.ui.theme.OASGTheme
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 
 
 class MainActivity : ComponentActivity() {
@@ -53,12 +57,17 @@ class MainActivity : ComponentActivity() {
     private lateinit var databaseService: DatabaseService
     private val usersData = mutableStateOf<List<UserLocation>>(listOf())
 
+    private lateinit var calculationService: CalculationService
+    private val currentBearing = mutableStateOf(361f)
+    private val currentDistance = mutableStateOf(0f)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authService = AuthenticationService(this)
         isUserLoggedIn.value = authService.isUserLoggedIn()
 
         databaseService = DatabaseService(authService)
+        calculationService = CalculationService()
 
         initializeLocationService()
 
@@ -74,11 +83,15 @@ class MainActivity : ComponentActivity() {
                         authService.signOut { isUserLoggedIn.value = false }
                         },
                         onGetData = {
-                            getLocationData()  // This will trigger the data fetching when the button is clicked
+                            getLocationData()
                         }
                     )
                     UsersList(usersData.value) { user ->
                         Log.d("UI", "Clicked on user ${user.userId}")
+                        calculateLocationToUser(user)
+                    }
+                    if (currentBearing.value != 361f) { // TODO: Think about this
+                        DirectionArrow(bearing = currentBearing.value, distance = currentDistance.value)
                     }
                 } else {
                     LoginScreen(onSignIn = {
@@ -97,6 +110,7 @@ class MainActivity : ComponentActivity() {
         locationService.startLocationUpdates(locationPermissionRequest)
     }
 
+    // this method gets called when location of user is updated in database (every few seconds)
     private fun getLocationData() {
         databaseService.getAllLocations { locations ->
             for (location in locations) {
@@ -104,6 +118,27 @@ class MainActivity : ComponentActivity() {
             }
             usersData.value = locations
         }
+    }
+
+    fun getUserLocationById(thisUserId: String): UserLocation? {
+        return usersData.value.find { it.userId == thisUserId }
+    }
+
+    private fun calculateLocationToUser(otherUser: UserLocation){
+        var thisUserId = authService.getCurrentUserId()
+        if (thisUserId == otherUser.userId){
+            Log.d("Calc", "You can not compare with yourself")
+        } else{
+            val thisUser = getUserLocationById(thisUserId)
+            if (thisUser?.latitude != null && thisUser.longitude != null && otherUser.latitude != null && otherUser.longitude != null){
+                currentDistance.value = calculationService.getDistanceInMeters(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
+                currentBearing.value = calculationService.calculateBearing(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
+            } else {
+                Log.d("Calc", "No current user was found")
+            }
+
+        }
+
     }
 
     // this function pauses the location update if the app is not in the foreground
@@ -157,8 +192,25 @@ fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit) {
                 onClick = { onUserClick(user) },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             ) {
-                Text(text = "Location for user ${user.userId}: ${user.userMail}")
+                Text(text = "Location for user ${user.userId}") // ${user.userMail}
             }
         }
+    }
+}
+
+@Composable
+fun DirectionArrow(bearing: Float, distance: Float) {
+    Column(modifier = Modifier.padding(300.dp)) {
+        Image(
+            painter = painterResource(id = R.drawable.arrow),
+            contentDescription = "Direction Arrow",
+            modifier = Modifier
+                .size(48.dp)
+                .graphicsLayer {
+                    rotationZ = bearing
+                }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "$distance meters away")
     }
 }
