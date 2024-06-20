@@ -27,7 +27,7 @@ class LocationService(
     private fun createLocationRequest() {
         // TODO: Use location request builder
         locationRequest = LocationRequest.create().apply {
-            interval = 10000
+            interval = 1000
             fastestInterval = 5000
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }
