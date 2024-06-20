@@ -14,10 +14,11 @@ class DatabaseService(private val authService: AuthenticationService) {
             "longitude" to location.longitude,
             "timestamp" to ServerValue.TIMESTAMP
         )
-        val userid = authService.getCurrentUserId()
-        Log.d("Userid: ", userid)
-        if (userid != ""){
-            databaseReference.child(userid).setValue(locationMap)
+        // I only use mail for convenience, should be userid
+        val userMail = authService.getCurrentUserEmail()
+        Log.d("userMail: ", userMail)
+        if (userMail != ""){
+            databaseReference.child(userMail).setValue(locationMap)
                 .addOnSuccessListener {
                     Log.d("Database", "Location saved successfully!")
                 }

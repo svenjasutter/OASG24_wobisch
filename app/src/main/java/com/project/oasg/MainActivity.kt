@@ -35,7 +35,13 @@ class MainActivity : ComponentActivity() {
     private val signInLauncher = registerForActivityResult(
         FirebaseAuthUIActivityResultContract(),
     ) { res ->
-        isUserLoggedIn.value = res.resultCode == RESULT_OK
+        if (res.resultCode == RESULT_OK) {
+            isUserLoggedIn.value = true
+            Log.d("LOGIN", "init location service")
+            initializeLocationService()
+        } else{
+            isUserLoggedIn.value = false
+        }
     }
 
     private lateinit var locationService: LocationService
@@ -58,11 +64,7 @@ class MainActivity : ComponentActivity() {
 
         databaseService = DatabaseService(authService)
 
-        locationService = LocationService(this) { location ->
-            Log.d("LocationUpdate", "Location: ${location.latitude}, ${location.longitude}")
-            databaseService.updateLocation(location)
-        }
-        locationService.startLocationUpdates(locationPermissionRequest)
+        initializeLocationService()
 
         setContent {
             val context = LocalContext.current
@@ -81,6 +83,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun initializeLocationService() {
+        locationService = LocationService(this) { location ->
+            Log.d("LocationUpdate", "Location: ${location.latitude}, ${location.longitude}")
+            databaseService.updateLocation(location)
+        }
+        locationService.startLocationUpdates(locationPermissionRequest)
     }
 
     // this function pauses the location update if the app is not in the foreground
