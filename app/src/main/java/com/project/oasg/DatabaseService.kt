@@ -10,7 +10,7 @@ import com.google.firebase.database.ValueEventListener
 
 data class UserLocation(
     var userId: String? = null,
-    val userMail: String? = null,
+    var userMail: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val timestamp: Long? = null
@@ -40,16 +40,31 @@ class DatabaseService(private val authService: AuthenticationService) {
     }
 
     fun getAllLocations(callback: (List<UserLocation>) -> Unit) {
-        databaseReference.addValueEventListener(object : ValueEventListener {
+        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val locations = mutableListOf<UserLocation>()
+                val count = snapshot.childrenCount
+                var processed = 0
+
                 for (childSnapshot in snapshot.children) {
-                    val location = childSnapshot.getValue(UserLocation::class.java)?.apply {
-                        userId = childSnapshot.key
+                    val location = childSnapshot.getValue(UserLocation::class.java)
+                    location?.userId = childSnapshot.key
+                    childSnapshot.key?.let {
+                        authService.getUserEmailFromUserId(it) { email ->
+                            location?.userMail = email
+                            if (location != null) {
+                                locations.add(location)
+                            }
+                            processed++
+                            if (processed.toLong() == count) {
+                                callback(locations)
+                            }
+                        }
                     }
-                    location?.let { locations.add(it) }
                 }
-                callback(locations)
+                if (count == 0L) {
+                    callback(emptyList())
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {

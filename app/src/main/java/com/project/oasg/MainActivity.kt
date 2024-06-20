@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var databaseService: DatabaseService
+    private val usersData = mutableStateOf<List<UserLocation>>(listOf())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,7 +75,11 @@ class MainActivity : ComponentActivity() {
                         },
                         onGetData = {
                             getLocationData()  // This will trigger the data fetching when the button is clicked
-                        })
+                        }
+                    )
+                    UsersList(usersData.value) { user ->
+                        Log.d("UI", "Clicked on user ${user.userId}")
+                    }
                 } else {
                     LoginScreen(onSignIn = {
                         authService.launchSignIn(signInLauncher)
@@ -96,6 +102,7 @@ class MainActivity : ComponentActivity() {
             for (location in locations) {
                 Log.d("App", "User: ${location.userId} Location: ${location.latitude}, ${location.longitude}, ${location.timestamp}")
             }
+            usersData.value = locations
         }
     }
 
@@ -139,5 +146,19 @@ fun StartBlock(name: String, onSignOut: () -> Unit, onGetData: () -> Unit, modif
 fun StartBlockPreview() {
     OASGTheme {
         StartBlock("You", onSignOut = {}, onGetData = {})
+    }
+}
+
+@Composable
+fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit) {
+    Column(modifier = Modifier.padding(164.dp)) {
+        for (user in users) {
+            Button(
+                onClick = { onUserClick(user) },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            ) {
+                Text(text = "Location for user ${user.userId}: ${user.userMail}")
+            }
+        }
     }
 }
