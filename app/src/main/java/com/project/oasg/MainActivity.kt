@@ -49,15 +49,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
+    private lateinit var databaseService: DatabaseService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authService = AuthenticationService(this)
         isUserLoggedIn.value = authService.isUserLoggedIn()
 
+        databaseService = DatabaseService(authService)
+
         locationService = LocationService(this) { location ->
             Log.d("LocationUpdate", "Location: ${location.latitude}, ${location.longitude}")
+            databaseService.updateLocation(location)
         }
         locationService.startLocationUpdates(locationPermissionRequest)
 

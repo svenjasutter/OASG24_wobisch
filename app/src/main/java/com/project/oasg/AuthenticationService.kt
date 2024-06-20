@@ -17,6 +17,10 @@ class AuthenticationService(private val context: Context) {
         return firebaseAuth.currentUser?.email ?: "Not signed in"
     }
 
+    fun getCurrentUserId(): String {
+        return firebaseAuth.currentUser?.uid ?: ""
+    }
+
     fun launchSignIn(signInLauncher: androidx.activity.result.ActivityResultLauncher<Intent>) {
         val providers = arrayListOf(
             AuthUI.IdpConfig.GoogleBuilder().build()

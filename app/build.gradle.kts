@@ -75,6 +75,6 @@ dependencies {
 
     implementation(libs.gms.play.services.location.v1800)
     implementation(libs.androidx.core.ktx.v170)
-
+    implementation(libs.firebase.database)
 
 }
