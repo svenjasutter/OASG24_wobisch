@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -21,12 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
-import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
-import com.google.firebase.auth.FirebaseAuth
 import com.project.oasg.ui.theme.OASGTheme
-import android.Manifest
 
 
 class MainActivity : ComponentActivity() {
@@ -70,12 +64,16 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             OASGTheme {
                 if (isUserLoggedIn.value) {
-                    StartBlock(name = authService.getCurrentUserEmail(), onSignOut = {
+                    StartBlock(name = authService.getCurrentUserEmail(),
+                        onSignOut = {
                         if (::locationService.isInitialized){
                             locationService.stopLocationUpdates()
                         }
                         authService.signOut { isUserLoggedIn.value = false }
-                    })
+                        },
+                        onGetData = {
+                            getLocationData()  // This will trigger the data fetching when the button is clicked
+                        })
                 } else {
                     LoginScreen(onSignIn = {
                         authService.launchSignIn(signInLauncher)
@@ -93,16 +91,26 @@ class MainActivity : ComponentActivity() {
         locationService.startLocationUpdates(locationPermissionRequest)
     }
 
+    private fun getLocationData() {
+        databaseService.getAllLocations { locations ->
+            for (location in locations) {
+                Log.d("App", "User: ${location.userId} Location: ${location.latitude}, ${location.longitude}, ${location.timestamp}")
+            }
+        }
+    }
+
     // this function pauses the location update if the app is not in the foreground
-//    override fun onPause() {
-//        super.onPause()
-//        locationService.stopLocationUpdates()
-//    }
+    //    override fun onPause() {
+    //        super.onPause()
+    //        locationService.stopLocationUpdates()
+    //    }
 }
 
 @Composable
 fun LoginScreen(onSignIn: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp)) {
         Text("Please sign in")
         Spacer(modifier = Modifier.height(8.dp))
         Button(onClick = onSignIn) {
@@ -112,12 +120,16 @@ fun LoginScreen(onSignIn: () -> Unit) {
 }
 
 @Composable
-fun StartBlock(name: String, onSignOut: () -> Unit, modifier: Modifier = Modifier) {
+fun StartBlock(name: String, onSignOut: () -> Unit, onGetData: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier = modifier.padding(16.dp)) {
         Text(text = "Hello $name!")
         Spacer(modifier = Modifier.height(8.dp))
         Button(onClick = onSignOut) {
             Text("Sign Out")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onGetData) {
+            Text("Get All User Data")
         }
     }
 }
@@ -126,6 +138,6 @@ fun StartBlock(name: String, onSignOut: () -> Unit, modifier: Modifier = Modifie
 @Composable
 fun StartBlockPreview() {
     OASGTheme {
-        StartBlock("You", onSignOut = {})
+        StartBlock("You", onSignOut = {}, onGetData = {})
     }
 }
