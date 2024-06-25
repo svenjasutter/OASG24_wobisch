@@ -68,6 +68,8 @@ class MainActivity : ComponentActivity() {
     private val currentBearing = mutableStateOf(361f)
     private val currentDistance = mutableStateOf(0f)
 
+    private val isShowingDirection = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authService = AuthenticationService(this)
@@ -84,36 +86,30 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             OASGTheme {
                 if (isUserLoggedIn.value) {
-                    MainContent(
-                        name = authService.getCurrentUserEmail(),
-                        users = usersData.value,
-                        onUserClick = { user ->
-                            calculateLocationToUser(user)
-                        },
-                        onSignOut = {
-                            authService.signOut { isUserLoggedIn.value = false }
-                        },
-                        currentBearing = currentBearing.value,
-                        currentDistance = currentDistance.value)
-
-//                    StartBlock(name = authService.getCurrentUserEmail(),
-//                        onSignOut = {
-//                        if (::locationService.isInitialized){
-//                            locationService.stopLocationUpdates()
-//                        }
-//                        authService.signOut { isUserLoggedIn.value = false }
-//                        },
-//                        onGetData = {
-//                            getLocationData()
-//                        }
-//                    )
-//                    UsersList(usersData.value) { user ->
-//                        Log.d("UI", "Clicked on user ${user.userId}")
-//                        calculateLocationToUser(user)
-//                    }
-//                    if (currentBearing.value != 361f) { // TODO: Think about this
-//                        DirectionArrow(bearing = currentBearing.value, distance = currentDistance.value)
-//                    }
+                    if (!isShowingDirection.value) {
+                        MainContent(
+                            name = authService.getCurrentUserEmail(),
+                            users = usersData.value,
+                            onUserClick = { user ->
+                                calculateLocationToUser(user)
+                                isShowingDirection.value = true  // Switch to the direction screen
+                            },
+                            onSignOut = {
+                                if (::locationService.isInitialized) {
+                                    locationService.stopLocationUpdates()
+                                }
+                                authService.signOut { isUserLoggedIn.value = false }
+                            },
+                            currentBearing = currentBearing.value,
+                            currentDistance = currentDistance.value
+                        )
+                    } else {
+                        DirectionScreen(
+                            bearing = currentBearing.value,
+                            distance = currentDistance.value,
+                            onBack = { isShowingDirection.value = false }
+                        )
+                    }
                 } else {
                     LoginScreen(onSignIn = {
                         authService.launchSignIn(signInLauncher)
@@ -121,6 +117,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
     }
 
     private fun initializeLocationService() {
@@ -181,7 +178,7 @@ fun MainContent(
     Column(modifier = Modifier.fillMaxSize()) {
         StartBlock(name = name, onSignOut = onSignOut)
         UsersList(users = users, onUserClick = onUserClick)
-        if (currentBearing != 361f) { // Assuming 361f is the default unset value
+        if (currentBearing != 361f) {
             DirectionArrow(bearing = currentBearing, distance = currentDistance)
         }
     }
@@ -256,5 +253,18 @@ fun DirectionArrow(bearing: Float, distance: Float) {
         )
         Spacer(modifier = Modifier.height(16.dp).width(128.dp))
         Text(text = "$distance meters away")
+    }
+}
+
+@Composable
+fun DirectionScreen(bearing: Float, distance: Float, onBack: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Button(onClick = onBack) {
+            Text("Back")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        if (bearing != 361f) {
+            DirectionArrow(bearing = bearing, distance = distance)
+        }
     }
 }
