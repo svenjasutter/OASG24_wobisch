@@ -23,9 +23,16 @@ import androidx.compose.ui.unit.dp
 import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.project.oasg.ui.theme.OASGTheme
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
 
 class MainActivity : ComponentActivity() {
@@ -70,6 +77,8 @@ class MainActivity : ComponentActivity() {
         calculationService = CalculationService()
 
         initializeLocationService()
+
+        getLocationData()
 
         setContent {
             val context = LocalContext.current
@@ -163,18 +172,23 @@ fun LoginScreen(onSignIn: () -> Unit) {
 
 @Composable
 fun StartBlock(name: String, onSignOut: () -> Unit, onGetData: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.padding(16.dp)) {
-        Text(text = "Hello $name!")
-        Spacer(modifier = Modifier.height(8.dp))
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = "$name you need another beer!", style = TextStyle(
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+        )
         Button(onClick = onSignOut) {
             Text("Sign Out")
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = onGetData) {
-            Text("Get All User Data")
-        }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -186,7 +200,7 @@ fun StartBlockPreview() {
 
 @Composable
 fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit) {
-    Column(modifier = Modifier.padding(164.dp)) {
+    Column(modifier = Modifier.padding(32.dp)) {
         for (user in users) {
             Button(
                 onClick = { onUserClick(user) },
@@ -200,7 +214,7 @@ fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit) {
 
 @Composable
 fun DirectionArrow(bearing: Float, distance: Float) {
-    Column(modifier = Modifier.padding(300.dp)) {
+    Column(modifier = Modifier.padding(175.dp)) {
         Image(
             painter = painterResource(id = R.drawable.arrow),
             contentDescription = "Direction Arrow",
@@ -210,7 +224,7 @@ fun DirectionArrow(bearing: Float, distance: Float) {
                     rotationZ = bearing
                 }
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp).width(128.dp))
         Text(text = "$distance meters away")
     }
 }
