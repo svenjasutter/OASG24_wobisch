@@ -84,24 +84,36 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             OASGTheme {
                 if (isUserLoggedIn.value) {
-                    StartBlock(name = authService.getCurrentUserEmail(),
-                        onSignOut = {
-                        if (::locationService.isInitialized){
-                            locationService.stopLocationUpdates()
-                        }
-                        authService.signOut { isUserLoggedIn.value = false }
+                    MainContent(
+                        name = authService.getCurrentUserEmail(),
+                        users = usersData.value,
+                        onUserClick = { user ->
+                            calculateLocationToUser(user)
                         },
-                        onGetData = {
-                            getLocationData()
-                        }
-                    )
-                    UsersList(usersData.value) { user ->
-                        Log.d("UI", "Clicked on user ${user.userId}")
-                        calculateLocationToUser(user)
-                    }
-                    if (currentBearing.value != 361f) { // TODO: Think about this
-                        DirectionArrow(bearing = currentBearing.value, distance = currentDistance.value)
-                    }
+                        onSignOut = {
+                            authService.signOut { isUserLoggedIn.value = false }
+                        },
+                        currentBearing = currentBearing.value,
+                        currentDistance = currentDistance.value)
+
+//                    StartBlock(name = authService.getCurrentUserEmail(),
+//                        onSignOut = {
+//                        if (::locationService.isInitialized){
+//                            locationService.stopLocationUpdates()
+//                        }
+//                        authService.signOut { isUserLoggedIn.value = false }
+//                        },
+//                        onGetData = {
+//                            getLocationData()
+//                        }
+//                    )
+//                    UsersList(usersData.value) { user ->
+//                        Log.d("UI", "Clicked on user ${user.userId}")
+//                        calculateLocationToUser(user)
+//                    }
+//                    if (currentBearing.value != 361f) { // TODO: Think about this
+//                        DirectionArrow(bearing = currentBearing.value, distance = currentDistance.value)
+//                    }
                 } else {
                     LoginScreen(onSignIn = {
                         authService.launchSignIn(signInLauncher)
@@ -158,6 +170,24 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun MainContent(
+    name: String,
+    users: List<UserLocation>,
+    onUserClick: (UserLocation) -> Unit,
+    onSignOut: () -> Unit,
+    currentBearing: Float,
+    currentDistance: Float
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        StartBlock(name = name, onSignOut = onSignOut)
+        UsersList(users = users, onUserClick = onUserClick)
+        if (currentBearing != 361f) { // Assuming 361f is the default unset value
+            DirectionArrow(bearing = currentBearing, distance = currentDistance)
+        }
+    }
+}
+
+@Composable
 fun LoginScreen(onSignIn: () -> Unit) {
     Column(modifier = Modifier
         .fillMaxSize()
@@ -171,7 +201,7 @@ fun LoginScreen(onSignIn: () -> Unit) {
 }
 
 @Composable
-fun StartBlock(name: String, onSignOut: () -> Unit, onGetData: () -> Unit, modifier: Modifier = Modifier) {
+fun StartBlock(name: String, onSignOut: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -194,7 +224,7 @@ fun StartBlock(name: String, onSignOut: () -> Unit, onGetData: () -> Unit, modif
 @Composable
 fun StartBlockPreview() {
     OASGTheme {
-        StartBlock("You", onSignOut = {}, onGetData = {})
+        StartBlock("You", onSignOut = {})
     }
 }
 
