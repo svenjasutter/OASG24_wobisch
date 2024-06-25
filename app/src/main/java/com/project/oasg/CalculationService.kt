@@ -19,6 +19,7 @@ class CalculationService {
         return distance
     }
 
+    //TODO: Handy must show in north direction
     fun calculateBearing(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
         Log.d("Bearing", "Start Bearing Calculation")
         val locationA = Location("point A")
