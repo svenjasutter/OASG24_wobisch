@@ -21,13 +21,13 @@ class AuthenticationService(private val context: Context) {
     }
 
     fun getUserEmailFromUserId(userId: String, callback: (String) -> Unit) {
-        Log.d("data", usersReference.toString())
+//        Log.d("data", usersReference.toString())
         usersReference.child(userId).child("email").get().addOnSuccessListener { dataSnapshot ->
             val email = dataSnapshot.getValue(String::class.java)
             if (email != null) {
                 callback(email)
             } else {
-                Log.d("Database", "No email found for user: $userId")
+//                Log.d("Database", "No email found for user: $userId")
                 callback("Email not found")
             }
         }.addOnFailureListener {

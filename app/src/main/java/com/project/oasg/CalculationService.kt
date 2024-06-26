@@ -5,7 +5,7 @@ import android.util.Log
 
 class CalculationService {
     fun getDistanceInMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
-        Log.d("Distance", "Start Distance Calculation")
+        Log.d("Distance", "Start Distance Calculation with " + lat2.toString() + " and " + lon2.toString())
         val locationA = Location("point A")
         locationA.latitude = lat1
         locationA.longitude = lon1

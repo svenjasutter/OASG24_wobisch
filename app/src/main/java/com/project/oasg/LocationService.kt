@@ -19,6 +19,7 @@ class LocationService(
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
 
+
     init {
         createLocationRequest()
         initializeLocationCallback()
@@ -44,7 +45,7 @@ class LocationService(
         }
     }
 
-    fun startLocationUpdates(locationPermissionRequest: ActivityResultLauncher<String>) {
+    fun startOwnLocationUpdates(locationPermissionRequest: ActivityResultLauncher<String>) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             locationPermissionRequest.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         } else {
@@ -52,7 +53,7 @@ class LocationService(
         }
     }
 
-    fun stopLocationUpdates() {
+    fun stopOwnLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 }

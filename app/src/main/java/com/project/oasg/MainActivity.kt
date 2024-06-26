@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity() {
     private val locationPermissionRequest: ActivityResultLauncher<String> by lazy {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
-                locationService.startLocationUpdates(locationPermissionRequest)
+                locationService.startOwnLocationUpdates(locationPermissionRequest)
             } else {
                 Log.e("LocationUpdate", "Permission denied by user")
             }
@@ -91,12 +92,15 @@ class MainActivity : ComponentActivity() {
                             name = authService.getCurrentUserEmail(),
                             users = usersData.value,
                             onUserClick = { user ->
-                                calculateLocationToUser(user)
+                                // Start updates to arrow
+                                // Do this every second until back button is pressed
+//                                calculateLocationToUser(user)
+                                startTrackingUser(user)
                                 isShowingDirection.value = true
                             },
                             onSignOut = {
                                 if (::locationService.isInitialized) {
-                                    locationService.stopLocationUpdates()
+                                    locationService.stopOwnLocationUpdates()
                                 }
                                 authService.signOut { isUserLoggedIn.value = false }
                             },
@@ -106,8 +110,8 @@ class MainActivity : ComponentActivity() {
                         )
                     } else {
                         DirectionScreen(
-                            bearing = currentBearing.floatValue,
-                            distance = currentDistance.floatValue,
+                            bearingState = currentBearing,
+                            distanceState = currentDistance,
                             onBack = { isShowingDirection.value = false }
                         )
                     }
@@ -123,19 +127,19 @@ class MainActivity : ComponentActivity() {
 
     private fun initializeLocationService() {
         locationService = LocationService(this) { location ->
-            Log.d("LocationUpdate", "Location: ${location.latitude}, ${location.longitude}")
+//            Log.d("LocationUpdate", "Location: ${location.latitude}, ${location.longitude}")
             databaseService.updateLocation(location)
         }
-        locationService.startLocationUpdates(locationPermissionRequest)
+        locationService.startOwnLocationUpdates(locationPermissionRequest)
     }
 
-    // this method gets called when location of user is updated in database (every few seconds)
     private fun getLocationData() {
         databaseService.getAllLocations { locations ->
-            for (location in locations) {
-                Log.d("App", "User: ${location.userId} Location: ${location.latitude}, ${location.longitude}, ${location.timestamp}")
-            }
+//            for (location in locations) {
+//                Log.d("App", "User: ${location.userId} Location: ${location.latitude}, ${location.longitude}, ${location.timestamp}")
+//            }
             usersData.value = locations
+//            Log.d("all userdata:", usersData.value.toString())
         }
     }
 
@@ -143,28 +147,39 @@ class MainActivity : ComponentActivity() {
         return usersData.value.find { it.userId == thisUserId }
     }
 
-    private fun calculateLocationToUser(otherUser: UserLocation){
-        val thisUserId = authService.getCurrentUserId()
-        if (thisUserId == otherUser.userId){
-            Log.d("Calc", "You can not compare with yourself")
-        } else{
-            val thisUser = getUserLocationById(thisUserId)
-            if (thisUser?.latitude != null && thisUser.longitude != null && otherUser.latitude != null && otherUser.longitude != null){
-                currentDistance.floatValue = calculationService.getDistanceInMeters(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
-                currentBearing.floatValue = calculationService.calculateBearing(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
-            } else {
-                Log.d("Calc", "No current user was found")
-            }
-
-        }
-
-    }
-
     // this function pauses the location update if the app is not in the foreground
     //    override fun onPause() {
     //        super.onPause()
     //        locationService.stopLocationUpdates()
     //    }
+
+    private fun startTrackingUser(user: UserLocation) {
+        if (user.userId != null){
+            databaseService.trackUserLocation(user.userId!!) { location ->
+                Log.d("Here I AM",user.userId.toString() + " and Location: " + location)
+                val thisUser = getUserLocationById(authService.getCurrentUserId())
+                if (thisUser?.latitude != null && thisUser.longitude != null && location.latitude != null && location.longitude != null){
+                    // TODO: Here i have old data
+                    currentDistance.floatValue = calculationService.getDistanceInMeters(
+                        thisUser.latitude,
+                        thisUser.longitude,
+                        location.latitude,
+                        location.longitude
+                    )
+                    Log.d("New Calc Distance Value", currentDistance.toString())
+                    currentBearing.floatValue = calculationService.calculateBearing(
+                        thisUser.latitude,
+                        thisUser.longitude,
+                        location.latitude,
+                        location.longitude
+                    )
+                    Log.d("New Calc Bearing Value", currentBearing.toString())
+                } else {
+                    Log.d("Calc", "No current user was found")
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -265,7 +280,7 @@ fun DirectionArrow(bearing: Float, distance: Float) {
 }
 
 @Composable
-fun DirectionScreen(bearing: Float, distance: Float, onBack: () -> Unit) {
+fun DirectionScreen(bearingState: State<Float>, distanceState: State<Float>, onBack: () -> Unit) {
     Column(modifier = Modifier
         .fillMaxSize()
         .padding(16.dp)) {
@@ -275,8 +290,8 @@ fun DirectionScreen(bearing: Float, distance: Float, onBack: () -> Unit) {
             Text("Back")
         }
         Spacer(modifier = Modifier.height(16.dp))
-        if (bearing != 361f) {
-            DirectionArrow(bearing = bearing, distance = distance)
+        if (bearingState.value != 361f) {
+            DirectionArrow(bearing = bearingState.value, distance = distanceState.value)
         }
     }
 }
