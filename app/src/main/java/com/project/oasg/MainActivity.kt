@@ -34,6 +34,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.google.firebase.database.ValueEventListener
 
 
 class MainActivity : ComponentActivity() {
@@ -70,6 +71,8 @@ class MainActivity : ComponentActivity() {
     private val currentDistance = mutableFloatStateOf(0f)
 
     private val isShowingDirection = mutableStateOf(false)
+
+    private var locationListener: ValueEventListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -154,30 +157,48 @@ class MainActivity : ComponentActivity() {
     //    }
 
     private fun startTrackingUser(user: UserLocation) {
-        if (user.userId != null){
-            databaseService.trackUserLocation(user.userId!!) { location ->
-                Log.d("Here I AM",user.userId.toString() + " and Location: " + location)
-                val thisUser = getUserLocationById(authService.getCurrentUserId())
-                if (thisUser?.latitude != null && thisUser.longitude != null && location.latitude != null && location.longitude != null){
-                    // TODO: Here i have old data
-                    currentDistance.floatValue = calculationService.getDistanceInMeters(
-                        thisUser.latitude,
-                        thisUser.longitude,
-                        location.latitude,
-                        location.longitude
-                    )
-                    Log.d("New Calc Distance Value", currentDistance.toString())
-                    currentBearing.floatValue = calculationService.calculateBearing(
-                        thisUser.latitude,
-                        thisUser.longitude,
-                        location.latitude,
-                        location.longitude
-                    )
-                    Log.d("New Calc Bearing Value", currentBearing.toString())
-                } else {
-                    Log.d("Calc", "No current user was found")
-                }
+        stopTrackingUser()
+
+        user.userId?.let { userId ->
+            locationListener = databaseService.trackUserLocation(userId) { location ->
+                Log.d("Tracking Location", "User ID: $userId, Location: $location")
+                val currentUserLocation = getUserLocationById(authService.getCurrentUserId())
+
+                currentUserLocation?.let {
+                    updateDistanceAndBearing(it, location)
+                } ?: Log.d("Calc", "No current user location found")
             }
+        }
+    }
+    private fun updateDistanceAndBearing(currentUserLocation: UserLocation, otherUserLocation: UserLocation) {
+        if (currentUserLocation.latitude != null && currentUserLocation.longitude != null &&
+            otherUserLocation.latitude != null && otherUserLocation.longitude != null) {
+
+            currentDistance.floatValue = calculationService.getDistanceInMeters(
+                currentUserLocation.latitude,
+                currentUserLocation.longitude,
+                otherUserLocation.latitude,
+                otherUserLocation.longitude
+            )
+
+            currentBearing.floatValue = calculationService.calculateBearing(
+                currentUserLocation.latitude,
+                currentUserLocation.longitude,
+                otherUserLocation.latitude,
+                otherUserLocation.longitude
+            )
+
+            Log.d("Location Calc", "Distance: ${currentDistance.floatValue}, Bearing: ${currentBearing.floatValue}")
+        } else {
+            Log.d("Calc Error", "Invalid location data")
+        }
+    }
+
+    private fun stopTrackingUser() {
+        locationListener?.let { listener ->
+            val userRef = databaseService.getReferenceForUser(authService.getCurrentUserId())
+            userRef.removeEventListener(listener)
+            locationListener = null
         }
     }
 }

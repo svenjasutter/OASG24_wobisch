@@ -70,19 +70,22 @@ class DatabaseService(private val authService: AuthenticationService) {
         })
     }
 
-    fun trackUserLocation(userId: String, callback: (UserLocation) -> Unit) {
+    fun trackUserLocation(userId: String, callback: (UserLocation) -> Unit): ValueEventListener {
         val userRef = databaseReference.child(userId)
-        userRef.addValueEventListener(object : ValueEventListener {
+        val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val location = snapshot.getValue(UserLocation::class.java)
                 location?.let { callback(it) }
             }
-
             override fun onCancelled(error: DatabaseError) {
                 Log.d("Database", "Error tracking user location", error.toException())
             }
-        })
+        }
+        userRef.addValueEventListener(listener)
+        return listener
     }
+
+    fun getReferenceForUser(userId: String) = databaseReference.child(userId)
 
 
 }
