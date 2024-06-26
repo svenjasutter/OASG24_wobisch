@@ -29,12 +29,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.google.firebase.database.ValueEventListener
+import kotlin.math.log
 
 
 class MainActivity : ComponentActivity() {
@@ -110,6 +112,7 @@ class MainActivity : ComponentActivity() {
                             currentBearing = currentBearing.floatValue,
                             currentDistance = currentDistance.floatValue,
                             currentUser = authService.getCurrentUserId(),
+                            myLocation = getUserLocationById(authService.getCurrentUserId())
                         )
                     } else {
                         DirectionScreen(
@@ -147,6 +150,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun getUserLocationById(thisUserId: String): UserLocation? {
+        Log.d("LOG", thisUserId)
         return usersData.value.find { it.userId == thisUserId }
     }
 
@@ -212,6 +216,7 @@ fun MainContent(
     currentBearing: Float,
     currentDistance: Float,
     currentUser: String,
+    myLocation: UserLocation?
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         StartBlock(name = name, onSignOut = onSignOut)
@@ -219,6 +224,7 @@ fun MainContent(
         if (currentBearing != 361f) {
             DirectionArrow(bearing = currentBearing, distance = currentDistance)
         }
+        OwnLocation(location = myLocation)
     }
 }
 
@@ -243,7 +249,7 @@ fun StartBlock(name: String, onSignOut: () -> Unit, modifier: Modifier = Modifie
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = "$name you need another beer!", style = TextStyle(
+        Text(text = "$name ", style = TextStyle(
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
@@ -282,37 +288,64 @@ fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit, cu
 }
 
 @Composable
-fun DirectionArrow(bearing: Float, distance: Float) {
-    Column(modifier = Modifier.padding(175.dp)) {
-        Image(
-            painter = painterResource(id = R.drawable.arrow),
-            contentDescription = "Direction Arrow",
-            modifier = Modifier
-                .size(48.dp)
-                .graphicsLayer {
-                    rotationZ = bearing
-                }
-        )
-        Spacer(modifier = Modifier
-            .height(16.dp)
-            .width(128.dp))
-        Text(text = "$distance meters away")
+fun OwnLocation(location: UserLocation?){
+    Column {
+        if (location != null) {
+            Text("Latitude: ${location.latitude}", fontSize = 16.sp)
+        }
+        if (location != null) {
+            Text("Longitude: ${location.longitude}", fontSize = 16.sp)
+        }
     }
 }
 
 @Composable
+fun DirectionArrow(bearing: Float, distance: Float) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.padding(16.dp)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.arrow),
+            contentDescription = "Direction Arrow",
+            modifier = Modifier
+                .size(96.dp)  // Increased size for better visibility
+                .graphicsLayer {
+                    rotationZ = bearing
+                }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "${distance} meters away",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+
+@Composable
 fun DirectionScreen(bearingState: State<Float>, distanceState: State<Float>, onBack: () -> Unit) {
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)) {
-        Button(onClick = {
-            onBack()
-        }) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Button(
+            onClick = { onBack() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 20.dp)
+        ) {
             Text("Back")
         }
-        Spacer(modifier = Modifier.height(16.dp))
         if (bearingState.value != 361f) {
             DirectionArrow(bearing = bearingState.value, distance = distanceState.value)
+        } else {
+            Text("No direction data available")
         }
     }
 }
