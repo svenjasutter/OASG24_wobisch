@@ -27,9 +27,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
-import androidx.compose.material3.Text
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -65,8 +65,8 @@ class MainActivity : ComponentActivity() {
     private val usersData = mutableStateOf<List<UserLocation>>(listOf())
 
     private lateinit var calculationService: CalculationService
-    private val currentBearing = mutableStateOf(361f)
-    private val currentDistance = mutableStateOf(0f)
+    private val currentBearing = mutableFloatStateOf(361f)
+    private val currentDistance = mutableFloatStateOf(0f)
 
     private val isShowingDirection = mutableStateOf(false)
 
@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
         getLocationData()
 
         setContent {
-            val context = LocalContext.current
+            LocalContext.current
             OASGTheme {
                 if (isUserLoggedIn.value) {
                     if (!isShowingDirection.value) {
@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
                             users = usersData.value,
                             onUserClick = { user ->
                                 calculateLocationToUser(user)
-                                isShowingDirection.value = true  // Switch to the direction screen
+                                isShowingDirection.value = true
                             },
                             onSignOut = {
                                 if (::locationService.isInitialized) {
@@ -100,13 +100,14 @@ class MainActivity : ComponentActivity() {
                                 }
                                 authService.signOut { isUserLoggedIn.value = false }
                             },
-                            currentBearing = currentBearing.value,
-                            currentDistance = currentDistance.value
+                            currentBearing = currentBearing.floatValue,
+                            currentDistance = currentDistance.floatValue,
+                            currentUser = authService.getCurrentUserId(),
                         )
                     } else {
                         DirectionScreen(
-                            bearing = currentBearing.value,
-                            distance = currentDistance.value,
+                            bearing = currentBearing.floatValue,
+                            distance = currentDistance.floatValue,
                             onBack = { isShowingDirection.value = false }
                         )
                     }
@@ -138,19 +139,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    fun getUserLocationById(thisUserId: String): UserLocation? {
+    private fun getUserLocationById(thisUserId: String): UserLocation? {
         return usersData.value.find { it.userId == thisUserId }
     }
 
     private fun calculateLocationToUser(otherUser: UserLocation){
-        var thisUserId = authService.getCurrentUserId()
+        val thisUserId = authService.getCurrentUserId()
         if (thisUserId == otherUser.userId){
             Log.d("Calc", "You can not compare with yourself")
         } else{
             val thisUser = getUserLocationById(thisUserId)
             if (thisUser?.latitude != null && thisUser.longitude != null && otherUser.latitude != null && otherUser.longitude != null){
-                currentDistance.value = calculationService.getDistanceInMeters(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
-                currentBearing.value = calculationService.calculateBearing(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
+                currentDistance.floatValue = calculationService.getDistanceInMeters(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
+                currentBearing.floatValue = calculationService.calculateBearing(thisUser.latitude, thisUser.longitude, otherUser.latitude, otherUser.longitude)
             } else {
                 Log.d("Calc", "No current user was found")
             }
@@ -173,11 +174,12 @@ fun MainContent(
     onUserClick: (UserLocation) -> Unit,
     onSignOut: () -> Unit,
     currentBearing: Float,
-    currentDistance: Float
+    currentDistance: Float,
+    currentUser: String,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         StartBlock(name = name, onSignOut = onSignOut)
-        UsersList(users = users, onUserClick = onUserClick)
+        UsersList(users = users, onUserClick = onUserClick, currentUser = currentUser)
         if (currentBearing != 361f) {
             DirectionArrow(bearing = currentBearing, distance = currentDistance)
         }
@@ -226,14 +228,18 @@ fun StartBlockPreview() {
 }
 
 @Composable
-fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit) {
+fun UsersList(users: List<UserLocation>, onUserClick: (UserLocation) -> Unit, currentUser: String) {
     Column(modifier = Modifier.padding(32.dp)) {
         for (user in users) {
-            Button(
-                onClick = { onUserClick(user) },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            ) {
-                Text(text = "Location for user ${user.userId}") // ${user.userMail}
+            if (user.userId != currentUser){
+                Button(
+                    onClick = { onUserClick(user) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Text(text = "Location for user ${user.userId}") // ${user.userMail}
+                }
             }
         }
     }
@@ -251,15 +257,21 @@ fun DirectionArrow(bearing: Float, distance: Float) {
                     rotationZ = bearing
                 }
         )
-        Spacer(modifier = Modifier.height(16.dp).width(128.dp))
+        Spacer(modifier = Modifier
+            .height(16.dp)
+            .width(128.dp))
         Text(text = "$distance meters away")
     }
 }
 
 @Composable
 fun DirectionScreen(bearing: Float, distance: Float, onBack: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onBack) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp)) {
+        Button(onClick = {
+            onBack()
+        }) {
             Text("Back")
         }
         Spacer(modifier = Modifier.height(16.dp))

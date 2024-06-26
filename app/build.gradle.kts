@@ -78,4 +78,5 @@ dependencies {
     implementation(libs.androidx.core.ktx.v170)
     implementation(libs.firebase.database)
 
+    implementation(libs.androidx.material)
 }
