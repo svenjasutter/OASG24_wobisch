@@ -1,5 +1,6 @@
 package com.project.oasg
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -89,6 +90,8 @@ class MainActivity : ComponentActivity() {
 
         getLocationData()
 
+        startOrientationService()
+
         setContent {
             LocalContext.current
             OASGTheme {
@@ -130,6 +133,25 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("OrientationService", "Service destroyed")
+        stopOrientationService()
+    }
+
+    private fun stopOrientationService() {
+        Intent(this, OrientationService::class.java).also { intent ->
+            stopService(intent)
+        }
+    }
+
+    private fun startOrientationService() {
+        Log.d("MainActivity", "Starting Orientation Service")
+        Intent(this, OrientationService::class.java).also { intent ->
+            startService(intent)
+        }
     }
 
     private fun initializeLocationService() {
