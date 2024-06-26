@@ -19,9 +19,9 @@ class LocationService (
     private var fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
-    
-    fun onCreate() {
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+
+    init {
         createLocationRequest()
         initializeLocationCallback()
     }
