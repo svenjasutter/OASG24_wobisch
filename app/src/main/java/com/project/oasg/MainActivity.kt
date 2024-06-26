@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var databaseService: DatabaseService
+
     private val usersData = mutableStateOf<List<UserLocation>>(listOf())
 
     private lateinit var calculationService: CalculationService
@@ -175,6 +176,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun updateDistanceAndBearing(currentUserLocation: UserLocation, otherUserLocation: UserLocation) {
+        Log.d("Update Callback", "Callback")
         if (currentUserLocation.latitude != null && currentUserLocation.longitude != null &&
             otherUserLocation.latitude != null && otherUserLocation.longitude != null) {
 
@@ -191,6 +193,8 @@ class MainActivity : ComponentActivity() {
                 otherUserLocation.latitude,
                 otherUserLocation.longitude
             )
+
+            // TODO: When i updatae currentBearing and currentDistance - does it affect the arrow?
 
             Log.d("Location Calc", "Distance: ${currentDistance.floatValue}, Bearing: ${currentBearing.floatValue}")
         } else {
@@ -310,14 +314,14 @@ fun DirectionArrow(bearing: Float, distance: Float) {
             painter = painterResource(id = R.drawable.arrow),
             contentDescription = "Direction Arrow",
             modifier = Modifier
-                .size(96.dp)  // Increased size for better visibility
+                .size(96.dp)
                 .graphicsLayer {
                     rotationZ = bearing
                 }
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "${distance} meters away",
+            text = "$distance meters away",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )

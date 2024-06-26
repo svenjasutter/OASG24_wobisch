@@ -75,6 +75,7 @@ class DatabaseService(private val authService: AuthenticationService) {
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val location = snapshot.getValue(UserLocation::class.java)
+                Log.d("Location Change of selected user", location?.latitude.toString() + location?.longitude.toString())
                 location?.let { callback(it) }
             }
             override fun onCancelled(error: DatabaseError) {
