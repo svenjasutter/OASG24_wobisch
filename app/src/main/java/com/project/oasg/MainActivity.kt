@@ -1,7 +1,11 @@
 package com.project.oasg
 
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,7 +44,7 @@ import com.google.firebase.database.ValueEventListener
 import kotlin.math.log
 
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
     private lateinit var authService: AuthenticationService
     private val isUserLoggedIn = mutableStateOf(false)
     private val signInLauncher = registerForActivityResult(
@@ -78,6 +82,23 @@ class MainActivity : ComponentActivity() {
 
     private var locationListener: ValueEventListener? = null
 
+    private var orientationService: OrientationService? = null
+    private var isBound = false
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(className: ComponentName, service: IBinder) {
+            val binder = service as OrientationService.LocalBinder
+            orientationService = binder.getService()
+            orientationService?.setAzimuthListener(this@MainActivity)
+            isBound = true
+        }
+
+        override fun onServiceDisconnected(arg0: ComponentName) {
+            orientationService = null
+            isBound = false
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authService = AuthenticationService(this)
@@ -90,8 +111,6 @@ class MainActivity : ComponentActivity() {
 
         getLocationData()
 
-        startOrientationService()
-
         setContent {
             LocalContext.current
             OASGTheme {
@@ -101,9 +120,6 @@ class MainActivity : ComponentActivity() {
                             name = authService.getCurrentUserEmail(),
                             users = usersData.value,
                             onUserClick = { user ->
-                                // Start updates to arrow
-                                // Do this every second until back button is pressed
-//                                calculateLocationToUser(user)
                                 startTrackingUser(user)
                                 isShowingDirection.value = true
                             },
@@ -133,25 +149,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d("OrientationService", "Service destroyed")
-        stopOrientationService()
-    }
-
-    private fun stopOrientationService() {
-        Intent(this, OrientationService::class.java).also { intent ->
-            stopService(intent)
-        }
-    }
-
-    private fun startOrientationService() {
-        Log.d("MainActivity", "Starting Orientation Service")
-        Intent(this, OrientationService::class.java).also { intent ->
-            startService(intent)
-        }
     }
 
     private fun initializeLocationService() {
@@ -197,6 +194,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
     private fun updateDistanceAndBearing(currentUserLocation: UserLocation, otherUserLocation: UserLocation) {
         Log.d("Update Callback", "Callback")
         if (currentUserLocation.latitude != null && currentUserLocation.longitude != null &&
@@ -231,7 +229,28 @@ class MainActivity : ComponentActivity() {
             locationListener = null
         }
     }
+
+    override fun onAzimuthChanged(azimuth: Float) {
+        Log.d("MainActivity", "Received azimuth: $azimuth");
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Intent(this, OrientationService::class.java).also { intent ->
+            bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isBound) {
+            orientationService?.setAzimuthListener(null)
+            unbindService(connection)
+            isBound = false
+        }
+    }
 }
+
 
 @Composable
 fun MainContent(

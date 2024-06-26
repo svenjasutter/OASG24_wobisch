@@ -7,10 +7,16 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Binder
 import android.os.IBinder
 import android.util.Log
 
 class OrientationService : Service(), SensorEventListener {
+
+    interface AzimuthListener {
+        fun onAzimuthChanged(azimuth: Float)
+    }
+
     private lateinit var sensorManager: SensorManager
     private var accelerometer: Sensor? = null
     private var magneticField: Sensor? = null
@@ -18,8 +24,18 @@ class OrientationService : Service(), SensorEventListener {
     private var accelerometerReading = FloatArray(3)
     private var magnetometerReading = FloatArray(3)
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
+    private var azimuthListener: AzimuthListener? = null
+
+    inner class LocalBinder : Binder() {
+        fun getService(): OrientationService = this@OrientationService
+    }
+
+    override fun onBind(intent: Intent?): IBinder {
+        return LocalBinder()
+    }
+
+    fun setAzimuthListener(listener: AzimuthListener?) {
+        this.azimuthListener = listener
     }
 
     override fun onCreate() {
@@ -54,16 +70,16 @@ class OrientationService : Service(), SensorEventListener {
         if (SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magnetometerReading)) {
             SensorManager.getOrientation(rotationMatrix, orientationAngles)
 
-            // Convert radians to degrees and normalize the angle
             val azimuthInRadians = orientationAngles[0]
             val azimuthInDegrees = Math.toDegrees(azimuthInRadians.toDouble()).toFloat() % 360
 
-            // Log the azimuth for debugging purposes
-            Log.d("OrientationService", "Azimuth (to North): $azimuthInDegrees degrees")
+//            Log.d("OrientationService", "Azimuth (to North): $azimuthInDegrees degrees")
+
+            azimuthListener?.onAzimuthChanged(azimuthInDegrees)
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // Can implement logic to handle changes in sensor accuracy here
+
     }
 }
