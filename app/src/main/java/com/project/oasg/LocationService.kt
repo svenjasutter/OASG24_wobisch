@@ -6,21 +6,22 @@ import com.google.android.gms.location.*
 import androidx.core.content.ContextCompat
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationRequest
 
 
-class LocationService(
+class LocationService (
     private val context: Context,
     private val handleLocationUpdate: (Location) -> Unit
 ) {
     private var fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
-
-
-    init {
+    
+    fun onCreate() {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         createLocationRequest()
         initializeLocationCallback()
     }
@@ -28,7 +29,7 @@ class LocationService(
     private fun createLocationRequest() {
         // TODO: Use location request builder
         locationRequest = LocationRequest.create().apply {
-            interval = 1000
+            interval = 500
             fastestInterval = 5000
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
         }

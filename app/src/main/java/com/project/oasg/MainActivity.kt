@@ -1,5 +1,6 @@
 package com.project.oasg
 
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -29,9 +30,8 @@ import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.project.oasg.ui.theme.OASGTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.Alignment
@@ -40,8 +40,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat.startForeground
+import androidx.media3.common.util.NotificationUtil.createNotificationChannel
 import com.google.firebase.database.ValueEventListener
-import kotlin.math.log
 
 
 class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
@@ -60,6 +62,7 @@ class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
     }
 
     private lateinit var locationService: LocationService
+
     private val locationPermissionRequest: ActivityResultLauncher<String> by lazy {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
             if (isGranted) {
@@ -81,9 +84,11 @@ class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
     private val isShowingDirection = mutableStateOf(false)
 
     private var locationListener: ValueEventListener? = null
+    private var OwnlocationListener: ValueEventListener? = null
 
     private var orientationService: OrientationService? = null
     private var isBound = false
+    private var azimuth = mutableStateOf(0f)
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -132,7 +137,8 @@ class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
                             currentBearing = currentBearing.floatValue,
                             currentDistance = currentDistance.floatValue,
                             currentUser = authService.getCurrentUserId(),
-                            myLocation = getUserLocationById(authService.getCurrentUserId())
+                            myLocation = getUserLocationById(authService.getCurrentUserId()),
+                            azimuth = azimuth.value
                         )
                     } else {
                         DirectionScreen(
@@ -193,6 +199,17 @@ class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
                 } ?: Log.d("Calc", "No current user location found")
             }
         }
+
+        authService.getCurrentUserId().let { userId ->
+            OwnlocationListener = databaseService.trackUserLocation(userId) { location ->
+                Log.d("Tracking OWN Location", "User ID: $userId, Location: $location")
+                val currentUserLocation = getUserLocationById(authService.getCurrentUserId())
+
+                currentUserLocation?.let {
+                    updateDistanceAndBearing(it, location)
+                } ?: Log.d("Calc", "No current user location found")
+            }
+        }
     }
 
     private fun updateDistanceAndBearing(currentUserLocation: UserLocation, otherUserLocation: UserLocation) {
@@ -213,9 +230,6 @@ class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
                 otherUserLocation.latitude,
                 otherUserLocation.longitude
             )
-
-            // TODO: When i updatae currentBearing and currentDistance - does it affect the arrow?
-
             Log.d("Location Calc", "Distance: ${currentDistance.floatValue}, Bearing: ${currentBearing.floatValue}")
         } else {
             Log.d("Calc Error", "Invalid location data")
@@ -228,10 +242,16 @@ class MainActivity : ComponentActivity(), OrientationService.AzimuthListener {
             userRef.removeEventListener(listener)
             locationListener = null
         }
+        OwnlocationListener?.let { listener ->
+            val userRef = databaseService.getReferenceForUser(authService.getCurrentUserId())
+            userRef.removeEventListener(listener)
+            OwnlocationListener = null
+        }
     }
 
     override fun onAzimuthChanged(azimuth: Float) {
-        Log.d("MainActivity", "Received azimuth: $azimuth");
+        Log.d("MainActivity", "Received azimuth: ${this.azimuth}");
+        this.azimuth.value = azimuth
     }
 
     override fun onStart() {
@@ -261,7 +281,8 @@ fun MainContent(
     currentBearing: Float,
     currentDistance: Float,
     currentUser: String,
-    myLocation: UserLocation?
+    myLocation: UserLocation?,
+    azimuth: Float
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         StartBlock(name = name, onSignOut = onSignOut)
@@ -270,6 +291,7 @@ fun MainContent(
             DirectionArrow(bearing = currentBearing, distance = currentDistance)
         }
         OwnLocation(location = myLocation)
+//        NorthArrow(azimuth = azimuth)
     }
 }
 
@@ -288,11 +310,10 @@ fun LoginScreen(onSignIn: () -> Unit) {
 
 @Composable
 fun StartBlock(name: String, onSignOut: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(16.dp)
     ) {
         Text(text = "$name ", style = TextStyle(
             fontSize = 24.sp,
@@ -361,8 +382,9 @@ fun DirectionArrow(bearing: Float, distance: Float) {
                 }
         )
         Spacer(modifier = Modifier.height(8.dp))
+        val formattedDistance = String.format("%.2f meters away", distance)
         Text(
-            text = "$distance meters away",
+            text = formattedDistance,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
@@ -392,5 +414,19 @@ fun DirectionScreen(bearingState: State<Float>, distanceState: State<Float>, onB
         } else {
             Text("No direction data available")
         }
+    }
+}
+
+@Composable
+fun NorthArrow(azimuth: Float) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
+        Image(
+            painter = painterResource(id = R.drawable.arrow),
+            contentDescription = "North Arrow",
+            modifier = Modifier
+                .graphicsLayer {
+                    rotationZ = azimuth
+                }
+        )
     }
 }

@@ -71,6 +71,7 @@ class OrientationService : Service(), SensorEventListener {
             SensorManager.getOrientation(rotationMatrix, orientationAngles)
 
             val azimuthInRadians = orientationAngles[0]
+            Log.d("RAD", azimuthInRadians.toString())
             val azimuthInDegrees = Math.toDegrees(azimuthInRadians.toDouble()).toFloat() % 360
 
 //            Log.d("OrientationService", "Azimuth (to North): $azimuthInDegrees degrees")
